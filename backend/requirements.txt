@@ -1,0 +1,6 @@
+flask==3.1.0
+flask-socketio==5.5.1
+flask-cors==5.0.1
+pymongo==4.12.1
+cryptography==44.0.3
+python-dotenv==1.1.0
