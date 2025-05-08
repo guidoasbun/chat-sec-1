@@ -11,6 +11,10 @@ from dotenv import load_dotenv
 from bson.json_util import dumps
 from bson.objectid import ObjectId
 
+# For password hashing
+from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash
+
 # Load environment variables
 load_dotenv()
 
@@ -43,35 +47,35 @@ def register():
     data = request.json
     username = data.get('username')
     password = data.get('password')
-    
+
     # Check if user already exists
     if users_collection.find_one({'username': username}):
         return jsonify({'success': False, 'message': 'Username already exists'}), 400
-    
+
     # Generate RSA key pair for the user
     private_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048
     )
-    
+
     public_key = private_key.public_key()
-    
+
     # Serialize keys for storage
     private_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption()
     ).decode('utf-8')
-    
+
     public_pem = public_key.public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode('utf-8')
-    
+
     # Store user in database
     user_data = {
         'username': username,
-        'password': password,  # In a real app, hash this password
+        'password': generate_password_hash(password),
         'public_key': public_pem,
         'private_key': private_pem,  # In a real app, encrypt this or store client-side
         'online': False
@@ -92,8 +96,8 @@ def login():
     password = data.get('password')
     
     user = users_collection.find_one({'username': username})
-    
-    if not user or user['password'] != password:
+
+    if not user or not check_password_hash(user['password'], password):
         return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
     
     # Update user status to online
