@@ -4,6 +4,9 @@ from pymongo import MongoClient
 from cryptography.hazmat.primitives.asymmetric import rsa, padding, dsa
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.backends import default_backend
+import base64
 from flask_cors import CORS
 import os
 import json
@@ -72,19 +75,43 @@ def register():
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode('utf-8')
 
-    # Store user in database
+    # Derive AES key
+    salt = os.urandom(16)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    aes_key = kdf.derive(password.encode())
+
+    # Encrypt private key using AES-GCM
+    iv = os.urandom(12)
+    encryptor = Cipher(
+        algorithms.AES(aes_key),
+        modes.GCM(iv),
+        backend=default_backend()
+    ).encryptor()
+    encrypted_private_key = encryptor.update(private_pem.encode()) + encryptor.finalize()
+    tag = encryptor.tag
+
+    # Store user in Mongo DB
     user_data = {
         'username': username,
         'password': generate_password_hash(password),
         'public_key': public_pem,
-        'private_key': private_pem,  # In a real app, encrypt this or store client-side
+        'private_key': base64.b64encode(encrypted_private_key).decode(),
+        'private_key_salt': base64.b64encode(salt).decode(),
+        'private_key_iv': base64.b64encode(iv).decode(),
+        'private_key_tag': base64.b64encode(tag).decode(),
         'online': False
     }
-    
+
     users_collection.insert_one(user_data)
-    
+
     return jsonify({
-        'success': True, 
+        'success': True,
         'message': 'User registered successfully',
         'public_key': public_pem
     }), 201
@@ -94,25 +121,47 @@ def login():
     data = request.json
     username = data.get('username')
     password = data.get('password')
-    
+
     user = users_collection.find_one({'username': username})
 
     if not user or not check_password_hash(user['password'], password):
         return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
-    
+
     # Update user status to online
     users_collection.update_one(
         {'username': username},
         {'$set': {'online': True}}
     )
-    
+
+    # Decrypt private key
+    salt = base64.b64decode(user['private_key_salt'])
+    iv = base64.b64decode(user['private_key_iv'])
+    tag = base64.b64decode(user['private_key_tag'])
+    encrypted_private_key = base64.b64decode(user['private_key'])
+
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    aes_key = kdf.derive(password.encode())
+
+    decryptor = Cipher(
+        algorithms.AES(aes_key),
+        modes.GCM(iv, tag),
+        backend=default_backend()
+    ).decryptor()
+    decrypted_private_key = decryptor.update(encrypted_private_key) + decryptor.finalize()
+
     return jsonify({
         'success': True,
         'message': 'Login successful',
         'user': {
             'username': user['username'],
             'public_key': user['public_key'],
-            'private_key': user['private_key']  # In a real app, this should be handled differently
+            'private_key': decrypted_private_key.decode()
         }
     }), 200
 
