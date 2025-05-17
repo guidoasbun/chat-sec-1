@@ -170,6 +170,14 @@ def get_online_users():
     online = list(users_collection.find({'online': True}, {'username': 1, '_id': 0}))
     return jsonify({'users': [user['username'] for user in online]}), 200
 
+
+@app.route('/api/users/public-key/<username>', methods=['GET'])
+def get_public_key(username):
+    user = users_collection.find_one({'username': username})
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    return jsonify({'public_key': user['public_key']}), 200
+
 # Socket.IO event handlers
 @socketio.on('connect')
 def handle_connect():

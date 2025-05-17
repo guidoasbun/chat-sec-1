@@ -13,7 +13,7 @@ import {
   disconnectSocket,
   getSymmetricKey
 } from '@/utils/socket';
-import { encryptMessage, decryptMessage, signMessageRSA, signMessageDSA } from '@/utils/crypto';
+import { encryptMessage, decryptMessage, signMessageRSA, signMessageDSA, verifySignatureRSA, verifySignatureDSA } from '@/utils/crypto';
 import { JSEncrypt } from 'jsencrypt';
 import CryptoJS from 'crypto-js';
 
@@ -92,6 +92,7 @@ export default function Chat() {
     }
 
     const parsedUser = JSON.parse(userData);
+    parsedUser.public_key = parsedUser.public_key || parsedUser.publicKey;
     setUser(parsedUser);
     userRef.current = parsedUser; // Store user in ref for access in event handlers
 
@@ -170,16 +171,56 @@ export default function Chat() {
     console.log(`Joined chat initiated by ${initiator} with participants: ${participants.join(', ')}`);
   };
 
-  const handleNewMessage = (data) => {
+  const handleNewMessage = async (data) => {
+
+    // if (!user || !user.public_key) {
+    //   console.warn("Missing user or public key for signature verification");
+    //   return;
+    // }
+
     const { sender, encrypted_message, signature, signature_type } = data;
-
     const symmetricKey = getSymmetricKey();
-
     const decryptedText = decryptMessage(encrypted_message, symmetricKey);
+
+// Lookup sender's public key from participant list (or fetch from server if needed)
+    let senderPublicKey = null;
+    const currentUser = userRef.current;
+
+    if (sender === currentUser?.username) {
+      senderPublicKey = currentUser.public_key || currentUser.publicKey;
+    } else {
+      // Fetch the sender’s public key from server if not found in participants list
+      try {
+        const res = await axios.get(`http://localhost:5001/api/users/public-key/${sender}`);
+        senderPublicKey = res.data.public_key;
+      } catch (err) {
+        console.warn("Failed to fetch public key for sender:", sender, err);
+        return;
+      }
+    }
+
+    console.log("Current user:", userRef.current);
+    if (!senderPublicKey) {
+      console.warn("Missing public key for sender:", sender);
+      return;
+    }
+
+    let isValid = false;
+    if (signature_type === "RSA") {
+      isValid = verifySignatureRSA(decryptedText, signature, senderPublicKey);
+    } else {
+      isValid = verifySignatureDSA(decryptedText, signature, senderPublicKey);
+    }
+
+    if (!isValid) {
+      console.warn(`Invalid signature on message from ${sender}`);
+    }
+
     setMessages(prev => [...prev, {
       sender,
       text: decryptedText,
       signatureType: signature_type,
+      signatureValid: isValid, // ✅ or ❌
       timestamp: new Date().toISOString()
     }]);
   };
@@ -227,12 +268,12 @@ export default function Chat() {
           user.privateKey
       );
       // Add message to local state (for immediate display)
-      setMessages(prev => [...prev, {
-        sender: user.username,
-        text: message,
-        signatureType,
-        timestamp: new Date().toISOString()
-      }]);
+      // setMessages(prev => [...prev, {
+      //   sender: user.username,
+      //   text: message,
+      //   signatureType,
+      //   timestamp: new Date().toISOString()
+      // }]);
     } catch (err) {
       console.error("Cannot send message:", err);
     }
@@ -343,7 +384,7 @@ export default function Chat() {
                   <p className="font-medium">{msg.sender}</p>
                   <p>{msg.text}</p>
                   <p className="text-xs mt-1 opacity-70">
-                    Signed with: {msg.signatureType}
+                    Signed with: {msg.signatureType} {msg.signatureValid ? "✅" : "❌"}
                   </p>
                 </div>
               ))}

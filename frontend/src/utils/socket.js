@@ -68,8 +68,10 @@ export const sendEncryptedMessage = (chatId, sender, message, signatureType, pri
       }
   ).toString();
 
-  // Create a simple signature for demo purposes
-  const signature = `${signatureType}-signed-by-${sender}`;
+  // Create a signature using RSA or DSA
+  const signature = signatureType === "RSA"
+    ? signMessageRSA(message, privateKey)
+    : signMessageDSA(message, privateKey);
 
   console.log(`Sending message in chat ${chatId} from ${sender}:`, message);
 

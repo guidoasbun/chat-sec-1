@@ -1,4 +1,6 @@
 import CryptoJS from 'crypto-js';
+import { JSEncrypt } from 'jsencrypt';
+
 const decryptSymmetricKey = async (encryptedKeyHex, privateKeyPEM) => {
   try {
     // Convert PEM to CryptoKey
@@ -71,4 +73,30 @@ export const decryptMessage = (encryptedMessage, symmetricKey) => {
     console.error("Decryption failed:", err);
     return "[Decryption failed]";
   }
+};
+
+export const signMessageRSA = (message, privateKeyPem) => {
+  const sign = new JSEncrypt();
+  sign.setPrivateKey(privateKeyPem);
+  return sign.sign(message, CryptoJS.SHA256, "sha256");
+};
+
+export const signMessageDSA = (message, privateKeyPem) => {
+  // Simulate DSA using the same RSA method for browser compatibility
+  const sign = new JSEncrypt();
+  sign.setPrivateKey(privateKeyPem);
+  return sign.sign(message, CryptoJS.SHA256, "sha256");
+};
+
+export const verifySignatureRSA = (message, signature, publicKeyPem) => {
+  const verify = new JSEncrypt();
+  verify.setPublicKey(publicKeyPem);
+  return verify.verify(message, signature, CryptoJS.SHA256);
+};
+
+export const verifySignatureDSA = (message, signature, publicKeyPem) => {
+  // Simulated using RSA logic for demo purposes
+  const verify = new JSEncrypt();
+  verify.setPublicKey(publicKeyPem);
+  return verify.verify(message, signature, CryptoJS.SHA256);
 };
