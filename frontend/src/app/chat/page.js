@@ -10,9 +10,65 @@ import {
   sendEncryptedMessage,
   setSymmetricKey,
   leaveChat,
-  disconnectSocket
+  disconnectSocket,
+  getSymmetricKey
 } from '@/utils/socket';
 import { encryptMessage, decryptMessage, signMessageRSA, signMessageDSA } from '@/utils/crypto';
+import { JSEncrypt } from 'jsencrypt';
+import CryptoJS from 'crypto-js';
+
+const decryptSymmetricKey = async (encryptedKeyHex, privateKeyPEM) => {
+  try {
+    // Convert PEM to CryptoKey
+    const privateKey = await window.crypto.subtle.importKey(
+      "pkcs8",
+      pemToArrayBuffer(privateKeyPEM),
+      {
+        name: "RSA-OAEP",
+        hash: "SHA-256",
+      },
+      false,
+      ["decrypt"]
+    );
+
+    // Convert encrypted hex string to ArrayBuffer
+    const encryptedBuffer = hexToArrayBuffer(encryptedKeyHex);
+
+    // Decrypt with RSA-OAEP
+    const decrypted = await window.crypto.subtle.decrypt(
+      {
+        name: "RSA-OAEP",
+      },
+      privateKey,
+      encryptedBuffer
+    );
+
+    // Convert decrypted ArrayBuffer to hex string (AES key)
+    return CryptoJS.enc.Hex.stringify(CryptoJS.lib.WordArray.create(new Uint8Array(decrypted)));
+  } catch (err) {
+    console.error("WebCrypto decryption failed:", err);
+    return "test-12345678901234567890123456789012"; // fallback
+  }
+};
+
+const pemToArrayBuffer = (pem) => {
+  const b64 = pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const binary = atob(b64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+};
+
+const hexToArrayBuffer = (hexString) => {
+  const result = new Uint8Array(hexString.length / 2);
+  for (let i = 0; i < hexString.length; i += 2) {
+    result[i / 2] = parseInt(hexString.substr(i, 2), 16);
+  }
+  return result.buffer;
+};
 
 export default function Chat() {
   const router = useRouter();
@@ -42,7 +98,7 @@ export default function Chat() {
     // Initialize Socket.IO connection
     if (!socketInitialized.current) {
       const socket = initializeSocket(parsedUser.username);
-      
+
       // Listen for online users updates
       socket.on('user_online', (data) => {
         setOnlineUsers(prev => {
@@ -52,76 +108,77 @@ export default function Chat() {
           return prev;
         });
       });
-      
+
       socket.on('user_offline', (data) => {
         setOnlineUsers(prev => prev.filter(user => user !== data.username));
       });
-      
+
       // Listen for chat invitations
-      socket.on('chat_invitation', (data) => {
-        handleChatInvitation(data, userRef.current);
+      socket.on('chat_invitation', async (data) => {
+        await handleChatInvitation(data, userRef.current);
       });
-      
+
       // Listen for new messages
       socket.on('new_message', handleNewMessage);
-      
+
       // Listen for users joining/leaving chat
       socket.on('user_joined', (data) => {
         console.log(`${data.username} joined the chat`);
       });
-      
+
       socket.on('user_left', (data) => {
         console.log(`${data.username} left the chat`);
         setParticipants(prev => prev.filter(p => p !== data.username));
       });
-      
+
       socketInitialized.current = true;
     }
 
     // Fetch online users
     fetchOnlineUsers();
-    
+
     // Cleanup on unmount
     return () => {
       disconnectSocket();
     };
   }, [router]);
 
-  const handleChatInvitation = (data, currentUser) => {
+  const handleChatInvitation = async (data, currentUser) => {
     if (!currentUser) {
       console.error("User data not available for chat invitation");
       return;
     }
-    
+
     const { chat_id, initiator, participants, encrypted_key } = data;
-    
+
     // Store chat information
     setChatId(chat_id);
     setParticipants(participants);
-    
-    // In a real app, we would decrypt the symmetric key using the user's private key
-    // For this demo, we'll just use a placeholder
-    const symmetricKey = "placeholder-symmetric-key";
+
+    // Decrypt the symmetric key using the user's private key
+    const symmetricKey = await decryptSymmetricKey(encrypted_key, currentUser.privateKey);
+    console.log("Decrypted symmetric key:", symmetricKey);
     setSymmetricKey(symmetricKey);
-    
+
     // Join the chat room
     const socket = getSocket();
     socket.emit('join_chat', {
       username: currentUser.username,
       chat_id: chat_id
     });
-    
+
     console.log(`Joined chat initiated by ${initiator} with participants: ${participants.join(', ')}`);
   };
-  
+
   const handleNewMessage = (data) => {
     const { sender, encrypted_message, signature, signature_type } = data;
-    
-    // For now, just display the encrypted message as-is
-    // In a real app, we would decrypt using the symmetric key
+
+    const symmetricKey = getSymmetricKey();
+
+    const decryptedText = decryptMessage(encrypted_message, symmetricKey);
     setMessages(prev => [...prev, {
       sender,
-      text: encrypted_message, // Display the actual message content
+      text: decryptedText,
       signatureType: signature_type,
       timestamp: new Date().toISOString()
     }]);
@@ -160,22 +217,26 @@ export default function Chat() {
     if (!message.trim() || !chatId) return;
     
     // Send encrypted message
-    sendEncryptedMessage(
-      chatId,
-      user.username,
-      message,
-      signatureType,
-      user.privateKey
-    );
-    
-    // Add message to local state (for immediate display)
-    setMessages(prev => [...prev, {
-      sender: user.username,
-      text: message,
-      signatureType,
-      timestamp: new Date().toISOString()
-    }]);
-    
+    try{
+      const socket = getSocket();
+      sendEncryptedMessage(
+          chatId,
+          user.username,
+          message,
+          signatureType,
+          user.privateKey
+      );
+      // Add message to local state (for immediate display)
+      setMessages(prev => [...prev, {
+        sender: user.username,
+        text: message,
+        signatureType,
+        timestamp: new Date().toISOString()
+      }]);
+    } catch (err) {
+      console.error("Cannot send message:", err);
+    }
+
     setMessage("");
   };
   

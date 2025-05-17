@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { encryptMessage, decryptMessage, signMessageRSA, signMessageDSA } from './crypto';
+import CryptoJS from 'crypto-js';
 
 let socket;
 let symmetricKey = null;
@@ -7,16 +8,17 @@ let symmetricKey = null;
 export const initializeSocket = (username) => {
   // Updated port to 5001 to match backend
   socket = io('http://localhost:5001');
-  
+
   socket.on('connect', () => {
     console.log('Connected to server');
     socket.emit('user_login', { username });
   });
-  
+
   return socket;
 };
 
 export const getSocket = () => {
+
   if (!socket) {
     throw new Error('Socket not initialized. Call initializeSocket first.');
   }
@@ -36,7 +38,7 @@ export const initiateChatWithUsers = (initiator, participants) => {
   if (!socket) {
     throw new Error('Socket not initialized');
   }
-  
+
   console.log(`Initiating chat as ${initiator} with participants:`, participants);
   socket.emit('initiate_chat', {
     initiator,
@@ -45,19 +47,32 @@ export const initiateChatWithUsers = (initiator, participants) => {
 };
 
 export const sendEncryptedMessage = (chatId, sender, message, signatureType, privateKey) => {
+  const socket = getSocket();
   if (!socket) {
     throw new Error('Socket not initialized');
   }
-  
-  // For demo purposes, we'll just use the message as-is
-  // In a real app, we would encrypt with the symmetric key
-  const encryptedMessage = message;
-  
+
+  console.log("Encrypting message with symmetric key:", symmetricKey);
+  console.log("Original message:", message);
+
+  if (!symmetricKey || symmetricKey.length !== 64) {
+    throw new Error("Invalid symmetric key: must be 64 hex characters long (32 bytes / AES-256)");
+  }
+
+  const encryptedMessage = CryptoJS.AES.encrypt(
+      CryptoJS.enc.Utf8.parse(message),
+      CryptoJS.enc.Hex.parse(symmetricKey),
+      {
+        mode: CryptoJS.mode.ECB,
+        padding: CryptoJS.pad.Pkcs7
+      }
+  ).toString();
+
   // Create a simple signature for demo purposes
   const signature = `${signatureType}-signed-by-${sender}`;
-  
+
   console.log(`Sending message in chat ${chatId} from ${sender}:`, message);
-  
+
   // Send the message
   socket.emit('send_message', {
     chat_id: chatId,
@@ -73,7 +88,7 @@ export const leaveChat = (username, chatId) => {
   if (!socket) {
     throw new Error('Socket not initialized');
   }
-  
+
   socket.emit('leave_chat', {
     username,
     chat_id: chatId
