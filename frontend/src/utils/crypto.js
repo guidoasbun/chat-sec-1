@@ -1,18 +1,18 @@
 import CryptoJS from 'crypto-js';
 import { JSEncrypt } from 'jsencrypt';
 
-const decryptSymmetricKey = async (encryptedKeyHex, privateKeyPEM) => {
+export const decryptSymmetricKey = async (encryptedKeyHex, privateKeyPEM) => {
   try {
     // Convert PEM to CryptoKey
     const privateKey = await window.crypto.subtle.importKey(
-      "pkcs8",
-      pemToArrayBuffer(privateKeyPEM),
-      {
-        name: "RSA-OAEP",
-        hash: "SHA-256",
-      },
-      false,
-      ["decrypt"]
+        "pkcs8",
+        pemToArrayBuffer(privateKeyPEM),
+        {
+          name: "RSA-OAEP",
+          hash: "SHA-256",
+        },
+        false,
+        ["decrypt"]
     );
 
     // Convert encrypted hex string to ArrayBuffer
@@ -20,11 +20,11 @@ const decryptSymmetricKey = async (encryptedKeyHex, privateKeyPEM) => {
 
     // Decrypt with RSA-OAEP
     const decrypted = await window.crypto.subtle.decrypt(
-      {
-        name: "RSA-OAEP",
-      },
-      privateKey,
-      encryptedBuffer
+        {
+          name: "RSA-OAEP",
+        },
+        privateKey,
+        encryptedBuffer
     );
 
     // Convert decrypted ArrayBuffer to hex string (AES key)
