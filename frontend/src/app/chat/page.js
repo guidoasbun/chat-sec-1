@@ -95,7 +95,8 @@ export default function Chat() {
         const response = await axios.get('http://localhost:5001/api/get-cookie', { withCredentials: true });
         const parsedUser = {
           ...response.data.user,
-          public_key: response.data.user.public_key || response.data.user.publicKey
+          public_key: response.data.user.public_key || response.data.user.publicKey,
+          privateKey: response.data.user.private_key || response.data.user.privateKey
         };
         setUser(parsedUser);
         userRef.current = parsedUser;
@@ -103,7 +104,40 @@ export default function Chat() {
         // initialize socket connection
         if (!socketInitialized.current) {
           const socket = initializeSocket(parsedUser.username);
-          // ... (socket event handlers)
+
+          socket.on('user_online', (data) => {
+            setOnlineUsers(prev => {
+              if (!prev.includes(data.username)) {
+                return [...prev, data.username];
+              }
+              return prev;
+            });
+          });
+
+          socket.on('user_offline', (data) => {
+            setOnlineUsers(prev => prev.filter(user => user !== data.username));
+          });
+
+          socket.on('chat_invitation', async (data) => {
+            console.log("📩 Received chat_invitation:", data);
+            await handleChatInvitation(data, userRef.current);
+          });
+
+          socket.on('new_message', handleNewMessage);
+
+          socket.on('user_joined', (data) => {
+            console.log(`${data.username} joined the chat`);
+          });
+
+          socket.on('user_left', (data) => {
+            console.log(`${data.username} left the chat`);
+            setParticipants(prev => prev.filter(p => p !== data.username));
+          });
+
+          socket.on('chat_error', (data) => {
+            alert(`Error: ${data.message}. Offline: ${data.offline_users.join(', ')}`);
+          });
+
           socketInitialized.current = true;
         }
 

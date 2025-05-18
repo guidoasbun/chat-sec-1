@@ -227,6 +227,8 @@ def handle_user_login(data):
 
 @socketio.on('initiate_chat')
 def handle_initiate_chat(data):
+    print("Received initiate_chat:", data)
+
     initiator = data['initiator']
     participants = data['participants']
     
@@ -286,6 +288,7 @@ def handle_initiate_chat(data):
             'participants': all_participants,
             'encrypted_key': encrypted_key.hex()
         }, room=online_users[participant])
+        print(f"Sent chat_invitation to {participant}")
         
         # Add user to the chat room
         join_room(chat_id, sid=online_users[participant])
