@@ -10,6 +10,7 @@ import base64
 from flask_cors import CORS
 import os
 import json
+import re
 from dotenv import load_dotenv
 from bson.json_util import dumps
 from bson.objectid import ObjectId
@@ -51,6 +52,11 @@ def register():
     data = request.json
     username = data.get('username')
     password = data.get('password')
+    # Sanitize username to prevent dangerous characters
+    username = re.sub(r'[<>"\'`;]', '', username)
+    # Password validation: min 8 chars, at least one special char
+    if len(password) < 8 or not re.search(r'[^A-Za-z0-9]', password):
+        return jsonify({'success': False, 'message': 'Password must be at least 8 characters and contain at least one special character.'}), 400
 
     # Check if user already exists
     if users_collection.find_one({'username': username}):
@@ -121,6 +127,7 @@ def register():
 def login():
     data = request.json
     username = data.get('username')
+    username = re.sub(r'[<>"\'`;]', '', username)
     password = data.get('password')
 
     user = users_collection.find_one({'username': username})
@@ -174,6 +181,7 @@ def get_online_users():
 
 @app.route('/api/users/public-key/<username>', methods=['GET'])
 def get_public_key(username):
+    username = re.sub(r'[<>"\'`;]', '', username)
     user = users_collection.find_one({'username': username})
     if not user:
         return jsonify({'error': 'User not found'}), 404

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import Link from 'next/link';
+import { sanitizeInput } from '@/utils/sanitize';
 
 export default function Login() {
   const router = useRouter();
@@ -16,11 +17,13 @@ export default function Login() {
     try {
       setIsLoading(true);
       setError('');
-      
-      // Updated to use port 5001
+
+      const cleanUsername = sanitizeInput(data.username);
+      const cleanPassword = sanitizeInput(data.password);
+
       const response = await axios.post('http://localhost:5001/api/login', {
-        username: data.username,
-        password: data.password
+        username: cleanUsername,
+        password: cleanPassword
       });
       
       if (response.data.success) {
