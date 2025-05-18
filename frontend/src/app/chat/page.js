@@ -14,7 +14,7 @@ import {
   getSymmetricKey
 } from '@/utils/socket';
 import { decryptMessage, verifySignatureRSA, verifySignatureDSA, decryptSymmetricKey } from '@/utils/crypto';
-
+import { sanitizeInput } from '@/utils/sanitize';
 
 export default function Chat() {
   const router = useRouter();
@@ -28,66 +28,6 @@ export default function Chat() {
   const [participants, setParticipants] = useState([]);
   const socketInitialized = useRef(false);
   const userRef = useRef(null); // Add a ref to store the user data
-
-  // useEffect(() => {
-  //   // Check if user is logged in
-  //   const response = await axios.get('http://localhost:5001/api/get-cookie', { withCredentials: true });
-  //   const parsedUser = {
-  //     ...response.data.user,
-  //     public_key: response.data.user.public_key || response.data.user.publicKey
-  //   };
-  //
-  //   parsedUser.public_key = parsedUser.public_key || parsedUser.publicKey;
-  //   setUser(parsedUser);
-  //   userRef.current = parsedUser; // Store user in ref for access in event handlers
-  //
-  //   // Initialize Socket.IO connection
-  //   if (!socketInitialized.current) {
-  //     const socket = initializeSocket(parsedUser.username);
-  //
-  //     // Listen for online users updates
-  //     socket.on('user_online', (data) => {
-  //       setOnlineUsers(prev => {
-  //         if (!prev.includes(data.username)) {
-  //           return [...prev, data.username];
-  //         }
-  //         return prev;
-  //       });
-  //     });
-  //
-  //     socket.on('user_offline', (data) => {
-  //       setOnlineUsers(prev => prev.filter(user => user !== data.username));
-  //     });
-  //
-  //     // Listen for chat invitations
-  //     socket.on('chat_invitation', async (data) => {
-  //       await handleChatInvitation(data, userRef.current);
-  //     });
-  //
-  //     // Listen for new messages
-  //     socket.on('new_message', handleNewMessage);
-  //
-  //     // Listen for users joining/leaving chat
-  //     socket.on('user_joined', (data) => {
-  //       console.log(`${data.username} joined the chat`);
-  //     });
-  //
-  //     socket.on('user_left', (data) => {
-  //       console.log(`${data.username} left the chat`);
-  //       setParticipants(prev => prev.filter(p => p !== data.username));
-  //     });
-  //
-  //     socketInitialized.current = true;
-  //   }
-  //
-  //   // Fetch online users
-  //   fetchOnlineUsers();
-  //
-  //   // Cleanup on unmount
-  //   return () => {
-  //     disconnectSocket();
-  //   };
-  // }, [router]);
 
   useEffect(() => {
     const fetchUserFromCookie = async () => {
@@ -268,20 +208,14 @@ export default function Chat() {
     // Send encrypted message
     try{
       const socket = getSocket();
+      const sanitizedMessage = sanitizeInput(message);
       sendEncryptedMessage(
           chatId,
           user.username,
-          message,
+          sanitizedMessage,
           signatureType,
           user.privateKey
       );
-      // Add message to local state (for immediate display)
-      // setMessages(prev => [...prev, {
-      //   sender: user.username,
-      //   text: message,
-      //   signatureType,
-      //   timestamp: new Date().toISOString()
-      // }]);
     } catch (err) {
       console.error("Cannot send message:", err);
     }
