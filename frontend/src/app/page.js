@@ -8,10 +8,14 @@ export default function Home() {
 
   useEffect(() => {
     // Check if user is logged in
-    const user = localStorage.getItem('user');
-    if (user) {
-      setIsLoggedIn(true);
-    }
+    const checkLogin = async () => {
+      const res = await fetch('http://localhost:5001/api/get-cookie', {
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.user) setIsLoggedIn(true);
+    };
+    checkLogin();
   }, []);
 
   return (

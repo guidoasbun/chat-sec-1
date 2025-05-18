@@ -18,12 +18,13 @@ from bson.objectid import ObjectId
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
 
+
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 # Enable CORS for all routes
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
+CORS(app ,supports_credentials=True, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 # Use threading mode instead of eventlet to avoid compatibility issues with Python 3.13
 socketio = SocketIO(app, cors_allowed_origins="http://localhost:3000", async_mode='threading', json=json)
@@ -177,6 +178,28 @@ def get_public_key(username):
     if not user:
         return jsonify({'error': 'User not found'}), 404
     return jsonify({'public_key': user['public_key']}), 200
+
+from flask import request, jsonify, make_response
+
+@app.route('/api/set-cookie', methods=['POST'])
+def set_cookie():
+    data = request.get_json()
+    resp = make_response(jsonify({"message": "Cookie set"}))
+    resp.set_cookie('user', json.dumps(data), httponly=True, secure=False, samesite='Strict')
+    return resp
+
+@app.route('/api/get-cookie', methods=['GET'])
+def get_cookie():
+    cookie = request.cookies.get('user')
+    if cookie:
+        return jsonify({"user": json.loads(cookie)})
+    return jsonify({"user": None}), 401
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    resp = make_response(jsonify({"message": "Logged out"}))
+    resp.set_cookie('user', '', expires=0)
+    return resp
 
 # Socket.IO event handlers
 @socketio.on('connect')

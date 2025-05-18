@@ -25,11 +25,11 @@ export default function Login() {
       
       if (response.data.success) {
         // Store user data in localStorage
-        localStorage.setItem('user', JSON.stringify({
+        await axios.post('http://localhost:5001/api/set-cookie', {
           username: response.data.user.username,
-          publicKey: response.data.user.public_key,
-          privateKey: response.data.user.private_key
-        }));
+          public_key: response.data.user.public_key,
+          private_key: response.data.user.private_key
+        }, { withCredentials: true });
         
         router.push('/chat');
       }
