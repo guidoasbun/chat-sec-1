@@ -29,67 +29,129 @@ export default function Chat() {
   const socketInitialized = useRef(false);
   const userRef = useRef(null); // Add a ref to store the user data
 
+  // useEffect(() => {
+  //   // Check if user is logged in
+  //   const response = await axios.get('http://localhost:5001/api/get-cookie', { withCredentials: true });
+  //   const parsedUser = {
+  //     ...response.data.user,
+  //     public_key: response.data.user.public_key || response.data.user.publicKey
+  //   };
+  //
+  //   parsedUser.public_key = parsedUser.public_key || parsedUser.publicKey;
+  //   setUser(parsedUser);
+  //   userRef.current = parsedUser; // Store user in ref for access in event handlers
+  //
+  //   // Initialize Socket.IO connection
+  //   if (!socketInitialized.current) {
+  //     const socket = initializeSocket(parsedUser.username);
+  //
+  //     // Listen for online users updates
+  //     socket.on('user_online', (data) => {
+  //       setOnlineUsers(prev => {
+  //         if (!prev.includes(data.username)) {
+  //           return [...prev, data.username];
+  //         }
+  //         return prev;
+  //       });
+  //     });
+  //
+  //     socket.on('user_offline', (data) => {
+  //       setOnlineUsers(prev => prev.filter(user => user !== data.username));
+  //     });
+  //
+  //     // Listen for chat invitations
+  //     socket.on('chat_invitation', async (data) => {
+  //       await handleChatInvitation(data, userRef.current);
+  //     });
+  //
+  //     // Listen for new messages
+  //     socket.on('new_message', handleNewMessage);
+  //
+  //     // Listen for users joining/leaving chat
+  //     socket.on('user_joined', (data) => {
+  //       console.log(`${data.username} joined the chat`);
+  //     });
+  //
+  //     socket.on('user_left', (data) => {
+  //       console.log(`${data.username} left the chat`);
+  //       setParticipants(prev => prev.filter(p => p !== data.username));
+  //     });
+  //
+  //     socketInitialized.current = true;
+  //   }
+  //
+  //   // Fetch online users
+  //   fetchOnlineUsers();
+  //
+  //   // Cleanup on unmount
+  //   return () => {
+  //     disconnectSocket();
+  //   };
+  // }, [router]);
+
   useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem("user");
-    if (!userData) {
-      router.push("/login");
-      return;
-    }
+    const fetchUserFromCookie = async () => {
+      try {
+        const response = await axios.get('http://localhost:5001/api/get-cookie', { withCredentials: true });
+        const parsedUser = {
+          ...response.data.user,
+          public_key: response.data.user.public_key || response.data.user.publicKey,
+          privateKey: response.data.user.private_key || response.data.user.privateKey
+        };
+        setUser(parsedUser);
+        userRef.current = parsedUser;
 
-    const parsedUser = JSON.parse(userData);
-    parsedUser.public_key = parsedUser.public_key || parsedUser.publicKey;
-    setUser(parsedUser);
-    userRef.current = parsedUser; // Store user in ref for access in event handlers
+        // initialize socket connection
+        if (!socketInitialized.current) {
+          const socket = initializeSocket(parsedUser.username);
 
-    // Initialize Socket.IO connection
-    if (!socketInitialized.current) {
-      const socket = initializeSocket(parsedUser.username);
+          socket.on('user_online', (data) => {
+            setOnlineUsers(prev => {
+              if (!prev.includes(data.username)) {
+                return [...prev, data.username];
+              }
+              return prev;
+            });
+          });
 
-      // Listen for online users updates
-      socket.on('user_online', (data) => {
-        setOnlineUsers(prev => {
-          if (!prev.includes(data.username)) {
-            return [...prev, data.username];
-          }
-          return prev;
-        });
-      });
+          socket.on('user_offline', (data) => {
+            setOnlineUsers(prev => prev.filter(user => user !== data.username));
+          });
 
-      socket.on('user_offline', (data) => {
-        setOnlineUsers(prev => prev.filter(user => user !== data.username));
-      });
+          socket.on('chat_invitation', async (data) => {
+            console.log("📩 Received chat_invitation:", data);
+            await handleChatInvitation(data, userRef.current);
+          });
 
-      // Listen for chat invitations
-      socket.on('chat_invitation', async (data) => {
-        await handleChatInvitation(data, userRef.current);
-      });
+          socket.on('new_message', handleNewMessage);
 
-      // Listen for new messages
-      socket.on('new_message', handleNewMessage);
+          socket.on('user_joined', (data) => {
+            console.log(`${data.username} joined the chat`);
+          });
 
-      // Listen for users joining/leaving chat
-      socket.on('user_joined', (data) => {
-        console.log(`${data.username} joined the chat`);
-      });
+          socket.on('user_left', (data) => {
+            console.log(`${data.username} left the chat`);
+            setParticipants(prev => prev.filter(p => p !== data.username));
+          });
 
-      socket.on('user_left', (data) => {
-        console.log(`${data.username} left the chat`);
-        setParticipants(prev => prev.filter(p => p !== data.username));
-      });
+          socket.on('chat_error', (data) => {
+            alert(`Error: ${data.message}. Offline: ${data.offline_users.join(', ')}`);
+          });
 
-      socketInitialized.current = true;
-    }
+          socketInitialized.current = true;
+        }
 
-    // Fetch online users
-    fetchOnlineUsers();
+        fetchOnlineUsers();
+      } catch (error) {
+        router.push("/login");
+      }
+    };
 
-    // Cleanup on unmount
+    fetchUserFromCookie(); // 👈 call the async function
     return () => {
       disconnectSocket();
     };
   }, [router]);
-
   const handleChatInvitation = async (data, currentUser) => {
     if (!currentUser) {
       console.error("User data not available for chat invitation");
@@ -236,8 +298,8 @@ export default function Chat() {
     setParticipants([]);
   };
 
-  const logout = () => {
-    localStorage.removeItem("user");
+  const logout = async () => {
+    await axios.post('http://localhost:5001/api/logout', {}, { withCredentials: true });
     disconnectSocket();
     router.push("/login");
   };

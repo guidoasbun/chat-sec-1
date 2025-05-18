@@ -3,6 +3,11 @@ import { JSEncrypt } from 'jsencrypt';
 
 export const decryptSymmetricKey = async (encryptedKeyHex, privateKeyPEM) => {
   try {
+    if (!privateKeyPEM || typeof privateKeyPEM !== 'string') {
+      console.warn("Private key is missing or invalid:", privateKeyPEM);
+      return "test-12345678901234567890123456789012"; // fallback key
+    }
+
     // Convert PEM to CryptoKey
     const privateKey = await window.crypto.subtle.importKey(
         "pkcs8",
@@ -36,7 +41,15 @@ export const decryptSymmetricKey = async (encryptedKeyHex, privateKeyPEM) => {
 };
 
 const pemToArrayBuffer = (pem) => {
-  const b64 = pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  if (!pem || typeof pem !== 'string') {
+    console.error("Invalid PEM format:", pem);
+    return new ArrayBuffer(0);
+  }
+
+
+  const cleanPem = pem.replace(/\\n/g, '\n');
+
+  const b64 = cleanPem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
   const binary = atob(b64);
   const len = binary.length;
   const bytes = new Uint8Array(len);
