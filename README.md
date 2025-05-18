@@ -1,4 +1,4 @@
-# Chat-Sec-1: Secure Chat Application
+# Chat-Sec: Secure Chat Application
 
 A secure chat application that enables users to communicate with end-to-end encryption and digital signatures.
 
@@ -17,35 +17,18 @@ A secure chat application that enables users to communicate with end-to-end encr
 - **Backend**: Flask with Socket.IO
 - **Database**: MongoDB
 
+## Proposed Cloud Infrastructure
+
+<img src="./public/infrastructure.png" alt="Alt text" width="500" height="300">
+
+
+
 ## Security Features
 
 - Asymmetric encryption (RSA) for secure key distribution
 - Symmetric encryption for chat messages
 - Digital signatures using either RSA or DSA
 - Secure user authentication
-
-## Project Structure
-
-```
-chat-sec-1/
-├── frontend/                # Next.js application
-│   ├── src/
-│   │   ├── app/             # Next.js app router
-│   │   │   ├── page.js      # Home page
-│   │   │   ├── login/       # Login page
-│   │   │   ├── register/    # Registration page
-│   │   │   └── chat/        # Chat interface
-│   │   └── utils/           # Utility functions
-│   │       ├── crypto.js    # Encryption/decryption utilities
-│   │       └── socket.js    # Socket.IO client setup
-│   └── public/              # Static assets
-├── backend/                 # Flask server
-│   ├── app.py               # Main application file
-│   ├── crypto_utils.py      # Cryptography utilities
-│   ├── models.py            # Database models
-│   └── requirements.txt     # Python dependencies
-└── README.md                # Project documentation
-```
 
 ## Setup Instructions
 
@@ -67,8 +50,8 @@ npm run dev
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
@@ -79,14 +62,15 @@ Create `.env` files in both frontend and backend directories with the necessary 
 
 #### Frontend (.env.local)
 ```
-NEXT_PUBLIC_API_URL=http://localhost:5000
-NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:5001
+NEXT_PUBLIC_SOCKET_URL=http://localhost:5001
 ```
 
 #### Backend (.env)
 ```
 SECRET_KEY=your_secret_key_here
-MONGO_URI=mongodb://localhost:27017/
+MONGO_URI=mongo_DB_URI_here
+
 ```
 
 ## Usage
