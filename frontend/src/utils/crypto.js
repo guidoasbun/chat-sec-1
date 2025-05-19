@@ -95,7 +95,6 @@ export const signMessageRSA = (message, privateKeyPem) => {
 };
 
 export const signMessageDSA = (message, privateKeyPem) => {
-  // Simulate DSA using the same RSA method for browser compatibility
   const sign = new JSEncrypt();
   sign.setPrivateKey(privateKeyPem);
   return sign.sign(message, CryptoJS.SHA256, "sha256");
@@ -108,7 +107,6 @@ export const verifySignatureRSA = (message, signature, publicKeyPem) => {
 };
 
 export const verifySignatureDSA = (message, signature, publicKeyPem) => {
-  // Simulated using RSA logic for demo purposes
   const verify = new JSEncrypt();
   verify.setPublicKey(publicKeyPem);
   return verify.verify(message, signature, CryptoJS.SHA256);
