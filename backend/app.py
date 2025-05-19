@@ -1,33 +1,37 @@
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from pymongo import MongoClient
+
+# Cryptography libraries for secure communication
+from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.asymmetric import rsa, padding, dsa
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+# Key derivation function. Converts password -> strong key
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
+
 import base64
 from flask_cors import CORS
 import os
 import json
 import re
 from dotenv import load_dotenv
-from bson.json_util import dumps
 from bson.objectid import ObjectId
 
 # For password hashing
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
 
-
 # Load environment variables
 load_dotenv()
 
+# App Setup
 app = Flask(__name__)
 # Enable CORS for all routes
 CORS(app ,supports_credentials=True, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-# Use threading mode instead of eventlet to avoid compatibility issues with Python 3.13
+# Initializes real-time WebSocket server with CORS allowed for frontend
 socketio = SocketIO(app, cors_allowed_origins="http://localhost:3000", async_mode='threading', json=json)
 
 # MongoDB connection
@@ -37,7 +41,7 @@ db = client['chat_sec_1_db']
 users_collection = db['users']
 messages_collection = db['messages']
 
-# In-memory storage for online users and their sessions
+# Keeps track of online users adn active chat sessions in memory
 online_users = {}
 active_chats = {}
 
@@ -58,21 +62,26 @@ def register():
     if len(password) < 8 or not re.search(r'[^A-Za-z0-9]', password):
         return jsonify({'success': False, 'message': 'Password must be at least 8 characters and contain at least one special character.'}), 400
 
-    # Check if user already exists
+    # Check if a user already exists in DB
     if users_collection.find_one({'username': username}):
         return jsonify({'success': False, 'message': 'Username already exists'}), 400
 
-    # Generate RSA key pair for the user
+
+    # Generates key pairs
+    # Generate an RSA key pair for the user
     private_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048
     )
-
+    # Extracts the public key font the previously generated RSA private key
     public_key = private_key.public_key()
 
+    # Encodes private key and public key in PEM format
     # Serialize keys for storage
     private_pem = private_key.private_bytes(
+        # Encode as PEM (Base64 + headers)
         encoding=serialization.Encoding.PEM,
+        # Use a PKCS#8 standard format
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption()
     ).decode('utf-8')
@@ -82,7 +91,7 @@ def register():
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode('utf-8')
 
-    # Derive AES key
+    # Derive an AES key from the user password
     salt = os.urandom(16)
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -93,7 +102,8 @@ def register():
     )
     aes_key = kdf.derive(password.encode())
 
-    # Encrypt private key using AES-GCM
+    # Encrypt a private key using AES-GCM
+    # Initialization Vector 12-byte (96-bit)
     iv = os.urandom(12)
     encryptor = Cipher(
         algorithms.AES(aes_key),
@@ -332,7 +342,7 @@ def handle_send_message(data):
     signature = data['signature']
     signature_type = data['signature_type']  # 'RSA' or 'DSA'
     
-    # Store message in database
+    # Store the message in the database
     message_data = {
         'chat_id': chat_id,
         'sender': username,

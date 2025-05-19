@@ -92,6 +92,8 @@ export default function Chat() {
       disconnectSocket();
     };
   }, [router]);
+
+
   const handleChatInvitation = async (data, currentUser) => {
     if (!currentUser) {
       console.error("User data not available for chat invitation");
@@ -120,11 +122,6 @@ export default function Chat() {
   };
 
   const handleNewMessage = async (data) => {
-
-    // if (!user || !user.public_key) {
-    //   console.warn("Missing user or public key for signature verification");
-    //   return;
-    // }
 
     const { sender, encrypted_message, signature, signature_type } = data;
     const symmetricKey = getSymmetricKey();

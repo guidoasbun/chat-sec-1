@@ -1,42 +1,53 @@
 # Chat-Sec: Secure Chat Application
 
-A secure chat application that enables users to communicate with end-to-end encryption and digital signatures.
+**Chat-Sec** is a secure, real-time chat application that enables authenticated users to exchange end-to-end encrypted and digitally signed messages. The system is designed with strong cryptographic protocols and supports group chats with dynamic key distribution.
+
+---
 
 ## Features
 
-- User registration and authentication
-- Online/offline status tracking
-- Secure key distribution using asymmetric encryption
-- End-to-end encrypted messaging using symmetric keys
-- Digital signatures using RSA or DSA
-- Real-time communication with Socket.IO
+- Secure symmetric key distribution via RSA encryption
+- End-to-end encrypted messaging with AES-256
+- Digital signature support (RSA or DSA)
+- Real-time chat using Flask-Socket.IO and WebSockets
+- Scalable frontend built in Next.js
+
+---
 
 ## Architecture
 
 - **Frontend**: Next.js (JavaScript)
-- **Backend**: Flask with Socket.IO
-- **Database**: MongoDB
+- **Backend**: Flask + Socket.IO (Python)
+- **Database**: MongoDB (user data & message history)
+
+---
 
 ## Proposed Cloud Infrastructure
 
-<img src="./public/infrastructure.png" alt="Alt text" width="500" height="300">
+![Infrastructure Diagram](./public/infrastructure.png)
 
-
+---
 
 ## Security Features
 
-- Asymmetric encryption (RSA) for secure key distribution
-- Symmetric encryption for chat messages
-- Digital signatures using either RSA or DSA
-- Secure user authentication
+- **Asymmetric Encryption (RSA-4096)**: For secure key exchange
+- **Symmetric Encryption (AES-256)**: For chat message confidentiality
+- **Digital Signatures (RSA or DSA)**: For message integrity and authenticity
+- **Password Security**: Passwords are hashed before storage using strong cryptographic hashing
+- **Input Sanitization**: Applied on both frontend and backend to prevent injection attacks
+
+---
 
 ## Setup Instructions
 
 ### Prerequisites
 
-- Node.js (v18+)
-- Python (v3.8+)
+- Node.js v18+
+- Python 3.8+
 - MongoDB
+- AWS account with Cognito configured
+
+---
 
 ### Frontend Setup
 
@@ -45,6 +56,15 @@ cd frontend
 npm install
 npm run dev
 ```
+
+Create a `.env.local` in the `frontend` directory:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5001
+NEXT_PUBLIC_SOCKET_URL=http://localhost:5001
+```
+
+---
 
 ### Backend Setup
 
@@ -56,44 +76,62 @@ pip install -r requirements.txt
 python app.py
 ```
 
-### Environment Variables
+Create a `.env` in the `backend` directory:
 
-Create `.env` files in both frontend and backend directories with the necessary configuration.
-
-#### Frontend (.env.local)
-```
-NEXT_PUBLIC_API_URL=http://localhost:5001
-NEXT_PUBLIC_SOCKET_URL=http://localhost:5001
-```
-
-#### Backend (.env)
-```
+```env
 SECRET_KEY=your_secret_key_here
-MONGO_URI=mongo_DB_URI_here
-
+MONGO_URI=mongodb://localhost:27017/chat-sec
 ```
+
+---
 
 ## Usage
 
-1. Register an account
-2. Log in to the system
-3. View online users
-4. Start a chat with selected users
-5. Exchange encrypted messages
-6. Sign messages using RSA or DSA
+1. Register or log in via the frontend
+2. View online users
+3. Invite users to a secure chat session
+4. Receive and decrypt the session’s symmetric key
+5. Start messaging securely with real-time encryption and signatures
+6. Messages are encrypted using AES-256 and signed using RSA or DSA
 
-## Security Implementation Details
+---
 
-### Key Distribution
-- Server generates a symmetric key for each chat session
-- The symmetric key is encrypted with each participant's public RSA key
-- Each user decrypts the symmetric key using their private RSA key
+## Security Protocols
+
+### Key Exchange
+- Server generates a unique symmetric AES key per session
+- Encrypts the AES key with each participant’s RSA public key
+- Clients decrypt using their private RSA key
 
 ### Message Encryption
-- All messages are encrypted using AES with the shared symmetric key
-- Only participants with the decrypted symmetric key can read messages
+- AES (256-bit) in CBC or GCM mode (depending on implementation)
+- Secure IV management and key lifecycle control
 
 ### Digital Signatures
-- Users can choose between RSA and DSA for message signatures
-- Signatures verify the authenticity and integrity of messages
-- Recipients can verify who sent each message
+- Users choose RSA or DSA for signing messages
+- Signature and public key metadata included with messages
+- Recipients verify sender identity and message integrity
+
+---
+
+## Testing and Validation
+
+- Unit tests written for cryptographic functions
+- Penetration testing for key leakage and XSS
+- Real-time encrypted chat verified across multiple clients
+- Load testing using concurrent users
+
+---
+
+## Future Improvements
+
+- Add ephemeral key exchange (Diffie-Hellman)
+- Store chat logs in encrypted form in MongoDB
+- Role-based access control for admin features
+- Desktop app integration via Tkinter
+
+---
+
+## License
+
+MIT License

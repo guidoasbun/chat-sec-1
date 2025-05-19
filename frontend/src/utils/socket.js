@@ -1,5 +1,5 @@
 import { io } from 'socket.io-client';
-import { encryptMessage, decryptMessage, signMessageRSA, signMessageDSA } from './crypto';
+import { signMessageRSA, signMessageDSA } from './crypto';
 import CryptoJS from 'crypto-js';
 
 let socket;
@@ -51,9 +51,6 @@ export const sendEncryptedMessage = (chatId, sender, message, signatureType, pri
   if (!socket) {
     throw new Error('Socket not initialized');
   }
-
-  console.log("Encrypting message with symmetric key:", symmetricKey);
-  console.log("Original message:", message);
 
   if (!symmetricKey || symmetricKey.length !== 64) {
     throw new Error("Invalid symmetric key: must be 64 hex characters long (32 bytes / AES-256)");

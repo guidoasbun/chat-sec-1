@@ -22,7 +22,7 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
       <div className="z-10 max-w-5xl w-full items-center justify-center font-mono text-sm lg:flex">
         <div className="flex flex-col items-center justify-center">
-          <h1 className="text-4xl font-bold mb-8">Chat-Sec-1</h1>
+          <h1 className="text-4xl font-bold mb-8">Chat-Sec</h1>
           <h2 className="text-2xl mb-8">Secure Chat Application</h2>
           
           <div className="flex flex-col space-y-4">
@@ -49,16 +49,6 @@ export default function Home() {
                 Go to Chat
               </Link>
             )}
-          </div>
-          
-          <div className="mt-12 text-center">
-            <h3 className="text-xl mb-4">Features:</h3>
-            <ul className="list-disc text-left">
-              <li>End-to-end encryption</li>
-              <li>Digital signatures (RSA/DSA)</li>
-              <li>Secure key distribution</li>
-              <li>Real-time messaging</li>
-            </ul>
           </div>
         </div>
       </div>
